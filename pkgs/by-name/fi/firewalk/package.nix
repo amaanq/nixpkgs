@@ -16,6 +16,11 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-f0sHzcH3faeg7epfpWXbgaHrRWaWBKMEqLdy38+svGo=";
   };
 
+  patches = [
+    # Fix build with GCC 15 (K&R function pointer type)
+    ./gcc15.patch
+  ];
+
   buildInputs = [
     libnet
     libpcap

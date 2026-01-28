@@ -1,0 +1,26 @@
+Fix build with GCC 15 by specifying proper function pointer types.
+
+GCC 15 treats K&R style function declarations as taking no arguments,
+which causes type mismatches with signal handlers.
+
+--- a/include/firewalk.h
++++ b/include/firewalk.h
+@@ -248,7 +248,7 @@ libnet_host_lookup(u_long ip, u_short use_name);
+ int
+ catch_sig(
+     int,                            /* signal to catch */
+-    void (*)()                      /* new signal handler */
++    void (*)(int)                   /* new signal handler */
+     );
+
+ /* handles SIGINT from user */
+--- a/src/signal.c
++++ b/src/signal.c
+@@ -40,7 +40,7 @@ extern int loop;
+
+ int
+-catch_sig(int signo, void (*handler)())
++catch_sig(int signo, void (*handler)(int))
+ {
+     struct sigaction action;
+
