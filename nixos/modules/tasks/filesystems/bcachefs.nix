@@ -188,8 +188,7 @@ in
 
     modulePackage = lib.mkOption {
       type = lib.types.package;
-      # See NOTE in linux-kernels.nix
-      default = config.boot.kernelPackages.callPackage cfg.package.kernelModule { };
+      default = config.boot.kernelPackages.bcachefs;
       internal = true;
     };
   };
