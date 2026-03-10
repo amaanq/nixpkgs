@@ -25,6 +25,13 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-NopI9aDtpEbf2JlboLTIg/9zXaZelfYhF0/RgwUgakI=";
   };
 
+  patches = [
+    # gvariant-message tests are blanket-flagged little-endian-only but the
+    # build/rewind tests pass on big-endian, causing an XPASS test failure.
+    # https://lore.kernel.org/ell/20260310194837.3078283-1-git@amaanq.com/
+    ./fix-gvariant-be-xpass.patch
+  ];
+
   nativeBuildInputs = [
     pkg-config
     autoreconfHook

@@ -1,0 +1,34 @@
+diff --git a/unit/test-gvariant-message.c b/unit/test-gvariant-message.c
+index 2df7c9b..8f8589f 100644
+--- a/unit/test-gvariant-message.c
++++ b/unit/test-gvariant-message.c
+@@ -386,22 +386,22 @@ static void builder_rewind(const void *data)
+ 
+ int main(int argc, char *argv[])
+ {
+ 	l_test_init(&argc, &argv);
+ 
+-	l_test_set_default_flags(L_TEST_FLAG_LITTLE_ENDIAN_ONLY);
+-
+-	l_test_add("Basic 1 (parse)", parse_basic_1, &message_data_basic_1);
++	/* Parse tests compare against little-endian reference data */
++	l_test_add_data_func("Basic 1 (parse)", &message_data_basic_1,
++				parse_basic_1, L_TEST_FLAG_LITTLE_ENDIAN_ONLY);
+ 	l_test_add("Basic 1 (build)", build_basic_1, &message_data_basic_1);
+ 
+-	l_test_add("Complex 1 (parse)", check_complex_1,
+-						&message_data_complex_1);
++	l_test_add_data_func("Complex 1 (parse)", &message_data_complex_1,
++				check_complex_1, L_TEST_FLAG_LITTLE_ENDIAN_ONLY);
+ 	l_test_add("Complex 1 (build)", build_complex_1,
+ 						&message_data_complex_1);
+ 
+-	l_test_add("Empty signature (parse)", check_empty_sig,
+-						&message_data_empty_sig);
++	l_test_add_data_func("Empty signature (parse)", &message_data_empty_sig,
++				check_empty_sig, L_TEST_FLAG_LITTLE_ENDIAN_ONLY);
+ 	l_test_add("Empty signature (build)", build_empty_sig,
+ 						&message_data_empty_sig);
+ 
+ 	l_test_add("Message Builder Rewind Complex 1", builder_rewind,
+ 						&message_data_complex_1);
