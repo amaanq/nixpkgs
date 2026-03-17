@@ -3,6 +3,7 @@
   buildPythonPackage,
   fetchFromGitHub,
   setuptools-scm,
+  pyobjc-framework-Cocoa,
   pytestCheckHook,
   stdenv,
 }:
@@ -21,9 +22,24 @@ buildPythonPackage rec {
 
   build-system = [ setuptools-scm ];
 
+  dependencies = lib.optionals stdenv.hostPlatform.isDarwin [
+    pyobjc-framework-Cocoa
+  ];
+
+  # The wheel declares "pyobjc" (meta-package) as a dependency, but nixpkgs
+  # only packages individual pyobjc frameworks. jaraco.path only uses
+  # Foundation (from pyobjc-framework-Cocoa), so we remove the meta-package
+  # dep and provide the specific framework instead.
+  pythonRemoveDeps = lib.optionals stdenv.hostPlatform.isDarwin [ "pyobjc" ];
+
   pythonImportsCheck = [ "jaraco.path" ];
 
   nativeCheckInputs = [ pytestCheckHook ];
+
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Expects ~/Library to exist, which it doesn't in the sandbox
+    "test_is_hidden_Darwin"
+  ];
 
   meta = {
     changelog = "https://github.com/jaraco/jaraco.path/blob/${src.tag}/NEWS.rst";
@@ -31,6 +47,5 @@ buildPythonPackage rec {
     homepage = "https://github.com/jaraco/jaraco.path";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ dotlambda ];
-    broken = stdenv.hostPlatform.isDarwin; # pyobjc is missing
   };
 }
