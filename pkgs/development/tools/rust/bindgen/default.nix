@@ -1,4 +1,5 @@
 {
+  stdenv,
   rust-bindgen-unwrapped,
   zlib,
   bash,
@@ -7,6 +8,13 @@
 }:
 let
   clang = rust-bindgen-unwrapped.clang;
+  # Bindgen's bundled libclang may not recognize extended ABI suffixes in
+  # platform triples (e.g. "gnuabielfv1" on ppc64). Normalize to a triple
+  # that clang understands.
+  clangTarget = builtins.replaceStrings
+    [ "gnuabielfv1" "gnuabielfv2" ]
+    [ "gnu" "gnu" ]
+    stdenv.hostPlatform.config;
   self =
     runCommand "rust-bindgen-${rust-bindgen-unwrapped.version}"
       {
@@ -49,6 +57,7 @@ let
           --replace-fail "@bash@" "${bash}" \
           --replace-fail "@cxxincludes@" "$cxxincludes" \
           --replace-fail "@cincludes@" "$cincludes" \
+          --replace-fail "@targetflag@" "--target=${clangTarget}" \
           --replace-fail "@unwrapped@" "${rust-bindgen-unwrapped}"
         chmod +x $out/bin/bindgen
       '';

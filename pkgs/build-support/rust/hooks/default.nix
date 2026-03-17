@@ -127,11 +127,22 @@
     };
   } ./maturin-build-hook.sh;
 
-  bindgenHook = makeSetupHook {
-    name = "rust-bindgen-hook";
-    substitutions = {
-      libclang = (lib.getLib clang.cc);
-      inherit clang;
-    };
-  } ./rust-bindgen-hook.sh;
+  bindgenHook =
+    let
+      # Bindgen's bundled libclang may not recognize extended ABI suffixes in
+      # platform triples (e.g. "gnuabielfv1" on ppc64). Normalize to a triple
+      # that clang understands.
+      clangTarget = builtins.replaceStrings
+        [ "gnuabielfv1" "gnuabielfv2" ]
+        [ "gnu" "gnu" ]
+        stdenv.hostPlatform.config;
+    in
+    makeSetupHook {
+      name = "rust-bindgen-hook";
+      substitutions = {
+        libclang = (lib.getLib clang.cc);
+        inherit clang;
+        targetFlag = "--target=${clangTarget}";
+      };
+    } ./rust-bindgen-hook.sh;
 }
