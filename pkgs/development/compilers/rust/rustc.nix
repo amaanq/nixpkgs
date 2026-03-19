@@ -341,6 +341,11 @@ stdenv.mkDerivation (finalAttrs: {
 
     ${optionalString (!withBundledLLVM) "rm -rf src/llvm"}
 
+    # Update cargo vendor checksum after patching psm's zseries_linux.s
+    substituteInPlace vendor/psm-*/.cargo-checksum.json \
+      --replace-quiet "5c3379a76e31bf13abf240efda12596fabce108cf63f60f9d0495e82ab8f1717" \
+                      "a683ca19129396a986c7c64e720c73f55c35fe095d64bc04ea57627c686ed574"
+
     # Useful debugging parameter
     # export VERBOSE=1
   ''
