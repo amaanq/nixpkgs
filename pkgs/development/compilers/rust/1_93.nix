@@ -52,7 +52,10 @@ import ./default.nix
   {
     rustcVersion = "1.93.0";
     rustcSha256 = "sha256-aREr2DwyGUP/w5C32y9Z7z/ruV2scA9nwhVvv2tQpwU=";
-    rustcPatches = [ ./ignore-missing-docs.patch ];
+    rustcPatches = [
+      ./ignore-missing-docs.patch
+      ./fix-psm-zseries-z900.patch
+    ];
 
     llvmSharedForBuild = llvmSharedFor pkgsBuildBuild;
     llvmSharedForHost = llvmSharedFor pkgsBuildHost;
