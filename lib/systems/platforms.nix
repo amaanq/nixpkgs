@@ -573,6 +573,15 @@ rec {
     };
   };
 
+  s390x = {
+    linux-kernel = {
+      name = "s390x";
+      baseConfig = "defconfig";
+      target = "bzImage";
+      autoModules = true;
+    };
+  };
+
   loongarch64-multiplatform = {
     gcc = {
       # https://github.com/loongson/la-softdev-convention/blob/master/la-softdev-convention.adoc#10-operating-system-package-build-requirements
@@ -631,6 +640,9 @@ rec {
 
     else if platform.isPower64 then
       if platform.isLittleEndian then powernv else ppc64
+
+    else if platform.isS390x then
+      s390x
 
     else if platform.isLoongArch64 then
       loongarch64-multiplatform
