@@ -503,11 +503,14 @@ in
 
     virtualisation.graphics = mkOption {
       type = types.bool;
-      default = true;
+      default = !pkgs.stdenv.hostPlatform.isS390x;
+      defaultText = literalExpression "!pkgs.stdenv.hostPlatform.isS390x";
       description = ''
         Whether to run QEMU with a graphics window, or in nographic mode.
         Serial console will be enabled on both settings, but this will
         change the preferred console.
+
+        Defaults to `false` on s390x which has no graphical console.
       '';
     };
 
