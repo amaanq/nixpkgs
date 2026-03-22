@@ -1899,6 +1899,7 @@
   ./system/boot/loader/loader.nix
   ./system/boot/loader/refind/refind.nix
   ./system/boot/loader/systemd-boot/systemd-boot.nix
+  ./system/boot/loader/zipl/zipl.nix
   ./system/boot/luksroot.nix
   ./system/boot/modprobe.nix
   ./system/boot/networkd.nix
