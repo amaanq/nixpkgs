@@ -132,6 +132,13 @@ stdenv.mkDerivation (finalAttrs: {
   enableParallelBuilding = true;
   doCheck = true;
 
+  # zlib's configure detects s390x VX and sets VGFMAFLAG in the generated
+  # Makefile, but nix's stdenv can clobber Makefile variables during the build
+  # phase. Use makeFlagsArray to pass it without space-splitting issues.
+  preBuild = lib.optionalString stdenv.hostPlatform.isS390x ''
+    makeFlagsArray+=("VGFMAFLAG=-mzarch -march=z13")
+  '';
+
   makeFlags = [
     "PREFIX=${stdenv.cc.targetPrefix}"
     "pkgconfigdir=${placeholder "dev"}/share/pkgconfig"
