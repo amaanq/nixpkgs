@@ -21,6 +21,8 @@ rec {
       "ttyS0"
     else if (with stdenv.hostPlatform; isAarch || isPower) then
       "ttyAMA0"
+    else if stdenv.hostPlatform.isS390x then
+      "ttysclp0"
     else
       throw "Unknown QEMU serial device for system '${stdenv.hostPlatform.system}'";
 
@@ -39,6 +41,7 @@ rec {
         powerpc64-linux = "${qemuPkg}/bin/qemu-system-ppc64 -machine powernv";
         riscv32-linux = "${qemuPkg}/bin/qemu-system-riscv32 -machine virt";
         riscv64-linux = "${qemuPkg}/bin/qemu-system-riscv64 -machine virt";
+        s390x-linux = "${qemuPkg}/bin/qemu-system-s390x -machine s390-ccw-virtio,accel=kvm:tcg -cpu max";
         x86_64-darwin = "${qemuPkg}/bin/qemu-system-x86_64 -machine accel=kvm:tcg -cpu max";
       };
       otherHostGuestMatrix = {
