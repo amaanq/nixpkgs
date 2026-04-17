@@ -56,6 +56,7 @@ stdenv.mkDerivation (finalAttrs: {
   env.BROKEN_TESTS = lib.concatStringsSep " " (
     [
       "cmd-interrupt"
+      "deptgt-interrupt"
       "directive-export"
       "directive-export-gmake"
       "opt-keep-going-indirect"

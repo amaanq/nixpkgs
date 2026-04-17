@@ -39,7 +39,9 @@ let
         "-DCMAKE_C_FLAGS=-DHAVE_GNU_STACK"
         "-DTLS_DEFAULT_CA_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"
       ]
-      ++ lib.optional buildShared "-DBUILD_SHARED_LIBS=ON";
+      ++ lib.optional buildShared "-DBUILD_SHARED_LIBS=ON"
+      # LibreSSL lacks s390x-specific crypto_arch.h; use portable C fallbacks.
+      ++ lib.optional stdenv.hostPlatform.isS390x "-DOPENSSL_NO_ASM=ON";
 
       # The autoconf build is broken as of 2.9.1, resulting in the following error:
       # libressl-2.9.1/tls/.libs/libtls.a', needed by 'handshake_table'.
@@ -53,6 +55,15 @@ let
 
       postPatch = ''
         patchShebangs tests/
+      ''
+      # LibreSSL has no s390x support. Put minimal stub headers in crypto/
+      # and crypto/bn/ so the portable C fallbacks (triggered by OPENSSL_NO_ASM=ON)
+      # can compile without finding arch-specific symbols.
+      + lib.optionalString stdenv.hostPlatform.isS390x ''
+        printf '#ifndef HEADER_CRYPTO_ARCH_H\n#define HEADER_CRYPTO_ARCH_H\n#endif\n' \
+          > crypto/crypto_arch.h
+        printf '#ifndef HEADER_BN_ARCH_H\n#define HEADER_BN_ARCH_H\n#endif\n' \
+          > crypto/bn/bn_arch.h
       ''
       + postPatch;
 
@@ -81,6 +92,7 @@ let
       '';
 
       meta = {
+        
         description = "Free TLS/SSL implementation";
         homepage = "https://www.libressl.org";
         license = with lib.licenses; [

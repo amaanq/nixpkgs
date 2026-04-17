@@ -158,6 +158,18 @@ stdenv.mkDerivation (finalAttrs: {
       --replace $out/lib/groff/grog $perl/lib/groff/grog
 
     find $perl/ -type f -print0 | xargs --null sed -i 's|${buildPackages.perl}|${perl}|'
+'';
+  postFixup = ''
+    # groff's make install creates symlinks from $doc/pdf/ to $out/examples/;
+    # multi-output splitting moves the targets and the symlinks dangle.
+    # Replace with copies of the actual files.
+    find "$doc" -type l | while read -r link; do
+      target=$(readlink -f "$link" 2>/dev/null || true)
+      if [ -n "$target" ] && [ -f "$target" ]; then
+        rm "$link"
+        cp "$target" "$link"
+      fi
+    done
   '';
 
   meta = {

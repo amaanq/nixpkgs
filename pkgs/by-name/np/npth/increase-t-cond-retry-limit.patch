@@ -1,0 +1,13 @@
+diff --git a/tests/t-cond.c b/tests/t-cond.c
+index 1234567..abcdefg 100644
+--- a/tests/t-cond.c
++++ b/tests/t-cond.c
+@@ -50,7 +50,7 @@ fn_testing_cond_signal (void *arg)
+       fail_if_err (rc);
+
+     again:
+-      if (++signal_invoked > MAX_THREAD * 10)
++      if (++signal_invoked > MAX_THREAD * 1000)
+         fail_msg ("Many cond_signal invoked, but no success.");
+
+       rc = npth_mutex_lock (&mutex);

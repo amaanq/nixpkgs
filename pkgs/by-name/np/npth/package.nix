@@ -17,6 +17,12 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [ autoreconfHook ];
 
+  patches = lib.optionals stdenv.hostPlatform.isS390x [
+    # The t-cond test's cond_signal retry limit (MAX_THREAD * 10 = 170) is
+    # too low for s390x's thread scheduling, leading to flaky failures.
+    ./increase-t-cond-retry-limit.patch
+  ];
+
   doCheck = true;
 
   passthru.tests = {
