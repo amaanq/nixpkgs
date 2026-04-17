@@ -47,7 +47,7 @@ stdenv.mkDerivation {
   # [==========] 3454 tests from 8 test suites ran.
   # [  PASSED  ] 3376 tests.
   # [  FAILED  ] 78 tests
-  doCheck = !stdenv.hostPlatform.isLoongArch64;
+  doCheck = !stdenv.hostPlatform.isS390x;
 
   checkPhase = ''
     runHook preCheck
