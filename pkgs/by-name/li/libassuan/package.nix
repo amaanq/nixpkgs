@@ -36,7 +36,7 @@ stdenv.mkDerivation (finalAttrs: {
     "--with-libgpg-error-prefix=${libgpg-error.dev}"
   ];
 
-  doCheck = true;
+  doCheck = !stdenv.hostPlatform.isS390x; # fdpassing test hangs on s390x
 
   # Make sure includes are fixed for callers who don't use libassuan-config
   postInstall = ''
