@@ -51,6 +51,12 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [ pytestCheckHook ] ++ optional-dependencies.i18n;
 
+  disabledTests = lib.optionals stdenv.hostPlatform.isS390x [
+    # RecursionError from Py_C_RECURSION_LIMIT=800 combined with s390x's
+    # larger per-frame stack usage; not a jinja2 bug.
+    "test_elif_deep"
+  ];
+
   passthru.doc = stdenv.mkDerivation {
     # Forge look and feel of multi-output derivation as best as we can.
     #
