@@ -462,10 +462,10 @@ in
       "${config.boot.initrd.systemd.package}/lib/systemd/systemd-udevd"
       "${config.boot.initrd.systemd.package}/lib/udev/ata_id"
       "${config.boot.initrd.systemd.package}/lib/udev/cdrom_id"
-      "${config.boot.initrd.systemd.package}/lib/udev/dmi_memory_id"
       "${config.boot.initrd.systemd.package}/lib/udev/scsi_id"
       "${config.boot.initrd.systemd.package}/lib/udev/rules.d"
     ]
+    ++ lib.optional (pkgs.stdenv.hostPlatform.isx86) "${config.boot.initrd.systemd.package}/lib/udev/dmi_memory_id"
     ++ map (x: "${x}/bin") config.boot.initrd.services.udev.binPackages;
 
     # Generate the udev rules for the initrd
