@@ -51,16 +51,17 @@ buildPythonPackage (finalAttrs: {
     # Patching of numpy.distutils is needed to prevent it from undoing the
     # patch to distutils.
     ./numpy-distutils-C++.patch
+  ]
+  ++ [
+    # Pending upstream: https://github.com/numpy/numpy/pull/30988
+    # Replaces the /bin/true shell-out in load_flags_auxv with direct auxv read.
+    ./fix-cpu-feature-detection-hwcap.patch
   ];
 
   postPatch = ''
     # remove needless reference to full Python path stored in built wheel
     substituteInPlace numpy/meson.build \
       --replace-fail 'py.full_path()' "'python'"
-
-    # Test_POWER_Features::test_features - FileNotFoundError: [Errno 2] No such file or directory: '/bin/true'
-    substituteInPlace numpy/_core/tests/test_cpu_features.py \
-      --replace-fail '/bin/true' '${lib.getExe' coreutils "true"}'
   '';
 
   build-system = [
