@@ -109,6 +109,8 @@ stdenv.mkDerivation (finalAttrs: {
   ++ lib.optional debugMode (lib.mesonBool "pam-debug" true);
 
   postInstall = ''
+    mkdir -p $man/share/man
+
     moveToOutput sbin/pam_namespace_helper $scripts
     moveToOutput etc/security/namespace.init $scripts
   '';
