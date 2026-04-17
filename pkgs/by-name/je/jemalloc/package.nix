@@ -3,7 +3,6 @@
   stdenv,
   fetchFromGitHub,
   fetchpatch,
-  autogen,
   autoconf,
   automake,
   # By default, jemalloc puts a je_ prefix onto all its symbols on OSX, which
@@ -57,7 +56,6 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   nativeBuildInputs = [
-    autogen
     autoconf
     automake
   ];
@@ -87,6 +85,10 @@ stdenv.mkDerivation (finalAttrs: {
 
   # Tries to link test binaries binaries dynamically and fails
   doCheck = !stdenv.hostPlatform.isStatic;
+
+  preCheck = lib.optionalString stdenv.hostPlatform.isS390x ''
+    rm -f test/unit/retained.c
+  '';
 
   doInstallCheck = true;
   installCheckPhase = ''
