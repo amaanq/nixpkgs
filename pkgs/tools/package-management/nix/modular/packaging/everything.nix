@@ -163,18 +163,21 @@ stdenv.mkDerivation (finalAttrs: {
       devPaths = lib.mapAttrsToList (_k: lib.getDev) finalAttrs.finalPackage.libs;
     in
     ''
-      mkdir -p $out $dev/nix-support
-
-      # Custom files
-      echo $libs >> $dev/nix-support/propagated-build-inputs
-      echo ${nix-cli} ${lib.escapeShellArgs devPaths} >> $dev/nix-support/propagated-build-inputs
+      mkdir -p $out $dev
 
       # Merged outputs
       lndir ${nix-cli} $out
 
       for lib in ${lib.escapeShellArgs devPaths}; do
         lndir $lib $dev
+        # Clear propagated-build-inputs symlink between iterations so the next
+        # lndir doesn't collide on File exists; we restore it at the end.
+        rm -f $dev/nix-support/propagated-build-inputs
       done
+
+      mkdir -p $dev/nix-support
+      echo $libs > $dev/nix-support/propagated-build-inputs
+      echo ${nix-cli} ${lib.escapeShellArgs devPaths} >> $dev/nix-support/propagated-build-inputs
 
       # Forwarded outputs
       ln -sT ${nix-manual} $doc
