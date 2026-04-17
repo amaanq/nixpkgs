@@ -106,6 +106,12 @@ python3.pkgs.buildPythonApplication rec {
     libblocksruntime
   ];
 
+  preCheck = lib.optionalString stdenv.hostPlatform.isS390x ''
+    rm -rf "test cases/frameworks/1 boost"
+    rm -rf "test cases/frameworks/2 gtest"
+    rm -rf "test cases/frameworks/3 gmock"
+  '';
+
   checkPhase = lib.concatStringsSep "\n" (
     [
       "runHook preCheck"
