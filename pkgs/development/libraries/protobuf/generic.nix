@@ -135,7 +135,7 @@ stdenv.mkDerivation (finalAttrs: {
     # https://github.com/protocolbuffers/protobuf/issues/10418
     # Also AnyTest.TestPackFromSerializationExceedsSizeLimit fails on 32-bit platforms
     # https://github.com/protocolbuffers/protobuf/issues/8460
-    !stdenv.hostPlatform.is32bit;
+    !(stdenv.hostPlatform.is32bit || stdenv.hostPlatform.isS390x); # UPB segfaults on big-endian
 
   nativeInstallCheckInputs = [
     versionCheckHook
