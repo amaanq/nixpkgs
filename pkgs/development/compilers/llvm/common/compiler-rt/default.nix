@@ -132,6 +132,14 @@ stdenv.mkDerivation (finalAttrs: {
         # wrong, or perhaps there is a way to provide an assert.h.
         "-Wno-error=implicit-function-declaration"
       ]
+      ++ lib.optionals stdenv.hostPlatform.isS390x [
+        # XRay's xray_tsc.h uses stckf which requires z13 or newer;
+        # default s390x baseline is z10.
+        "-march=z13"
+        # GCC 15 emits a false-positive maybe-uninitialized in ASAN's iovec
+        # interceptors; upstream hasn't annotated it.
+        "-Wno-error=maybe-uninitialized"
+      ]
     );
 
     # Work around clang’s trying to invoke unprefixed-ld on Darwin when `-target` is passed.
@@ -212,7 +220,11 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.cmakeBool "COMPILER_RT_BUILD_STANDALONE_LIBATOMIC" withAtomicsLib)
     (lib.cmakeBool "COMPILER_RT_LIBATOMIC_USE_PTHREAD" withAtomicsPthread)
   ]
-  ++ devExtraCmakeFlags;
+  ++ devExtraCmakeFlags
+  ++ lib.optionals stdenv.hostPlatform.isS390x [
+    # Pass -march=z13 to the assembler too; xray.s sources use z13 opcodes.
+    (lib.cmakeFeature "CMAKE_ASM_FLAGS" "-march=z13")
+  ];
 
   outputs = [
     "out"
