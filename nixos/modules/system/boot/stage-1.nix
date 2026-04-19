@@ -375,11 +375,13 @@ let
         symlink = "/init";
       }
       {
-        object = "${modulesClosure}/lib";
+        object = modulesClosure;
+        suffix = "/lib";
         symlink = "/lib";
       }
       {
-        object = "${pkgs.kmod-blacklist-ubuntu}/modprobe.conf";
+        object = pkgs.kmod-blacklist-ubuntu;
+        suffix = "/modprobe.conf";
         symlink = "/etc/modprobe.d/ubuntu.conf";
       }
       {
