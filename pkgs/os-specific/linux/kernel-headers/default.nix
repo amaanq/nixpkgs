@@ -155,17 +155,24 @@ in
 {
   inherit makeLinuxHeaders;
 
+  # arch/tile was removed from Linux after 4.16, so a tilegx target must take
+  # its uapi headers from the last release that still ships the Tilera arch.
   linuxHeaders =
     let
-      version = "6.18.7";
+      isTile = stdenvNoCC.hostPlatform.isTile;
+      version = if isTile then "4.16" else "6.18.7";
     in
     makeLinuxHeaders {
       inherit version;
       src = fetchurl {
         url = "mirror://kernel/linux/kernel/v${lib.versions.major version}.x/linux-${version}.tar.xz";
-        hash = "sha256-tyak0Vz5rgYhm1bYeCB3bjTYn7wTflX7VKm5wwFbjx4=";
+        hash =
+          if isTile then
+            "sha256-Y/bcjjyfOgJz1db03KOKJBPKOl9okynQW3UOTIe7Ibk="
+          else
+            "sha256-tyak0Vz5rgYhm1bYeCB3bjTYn7wTflX7VKm5wwFbjx4=";
       };
-      patches = [
+      patches = lib.optionals (!isTile) [
         ./no-relocs.patch # for building x86 kernel headers on non-ELF platforms
       ];
       passthru.updateScript = nix-update-script {
