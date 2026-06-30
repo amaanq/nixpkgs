@@ -135,6 +135,10 @@ stdenv.mkDerivation (
     ++ lib.optional stdenv.hostPlatform.isMusl ./fix-rpc-types-musl-conflicts.patch
     # Enable cross-compilation of glibc on Darwin (build=Darwin, host=Linux)
     ++ lib.optional stdenv.buildPlatform.isDarwin ./darwin-cross-build.patch
+    # Restore the Tilera TILE-Gx sysdeps (removed upstream in glibc 2.28),
+    # forward-ported from the 2.27 donor onto 2.42. Purely additive (only adds
+    # sysdeps/tile and sysdeps/unix/sysv/linux/tile), gated on a tilegx target.
+    ++ lib.optional stdenv.hostPlatform.isTile ./tilegx-sysdeps.patch
     # Reverts this patch: https://sourceware.org/git/?p=glibc.git;a=commit;h=55d63e731253de82e96ed4ddca2e294076cd0bc5
     # This revert enables [CET] (Control-flow Enforcement Technology) by default
     # [CET]: https://en.wikipedia.org/wiki/Control-flow_integrity#Intel_Control-flow_Enforcement_Technology
