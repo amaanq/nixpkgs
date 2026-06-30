@@ -340,6 +340,8 @@ let
             "s390"
           else if final.isLoongArch64 then
             "loongarch"
+          else if final.isTile then
+            "tile" # arch/tile, present in Linux <= 4.16
           else
             final.parsed.cpu.name;
 

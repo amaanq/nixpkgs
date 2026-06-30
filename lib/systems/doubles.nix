@@ -62,6 +62,7 @@ let
     "riscv64-linux"
     "s390-linux"
     "s390x-linux"
+    "tilegx-linux"
     "x86_64-linux"
 
     # MMIXware
@@ -166,6 +167,7 @@ in
   s390 = filterDoubles predicates.isS390;
   s390x = filterDoubles predicates.isS390x;
   loongarch64 = filterDoubles predicates.isLoongArch64;
+  tile = filterDoubles predicates.isTile;
   js = filterDoubles predicates.isJavaScript;
 
   bigEndian = filterDoubles predicates.isBigEndian;

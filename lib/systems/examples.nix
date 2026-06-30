@@ -199,6 +199,13 @@ rec {
     };
   };
 
+  tilegx = {
+    config = "tilegx-unknown-linux-gnu";
+    gcc = {
+      arch = "tilegx";
+    };
+  };
+
   mmix = {
     config = "mmix-unknown-mmixware";
     libc = "newlib";

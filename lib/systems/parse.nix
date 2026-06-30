@@ -403,6 +403,12 @@ rec {
         family = "loongarch";
       };
 
+      tilegx = {
+        bits = 64;
+        significantByte = littleEndian;
+        family = "tile";
+      };
+
       javascript = {
         bits = 32;
         significantByte = littleEndian;

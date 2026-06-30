@@ -289,6 +289,11 @@ rec {
         bits = 64;
       };
     };
+    isTile = {
+      cpu = {
+        family = "tile";
+      };
+    };
     isJavaScript = {
       cpu = cpuTypes.javascript;
     };

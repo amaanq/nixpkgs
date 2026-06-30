@@ -185,6 +185,7 @@ lib.runTests (
       "riscv64-linux"
       "s390-linux"
       "s390x-linux"
+      "tilegx-linux"
       "x86_64-linux"
     ];
     testnetbsd = mseteq netbsd [
