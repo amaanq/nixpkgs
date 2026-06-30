@@ -42500,6 +42500,25 @@ index 2daa1d603f..7a2e6537af 100755
      'gcc/V850-Options.html' : 'gcc/config/v850/',
      'gcc/VAX-Options.html' : 'gcc/config/vax/',
      'gcc/Visium-Options.html' : 'gcc/config/visium/',
+diff --git a/libgcc/config/tilegx/crti.S b/libgcc/config/tilegx/crti.S
+new file mode 100644
+index 0000000000..1f5dbc6aff
+--- /dev/null
++++ b/libgcc/config/tilegx/crti.S
+@@ -0,0 +1,4 @@
++/* crti.S is empty because TILE-Gx uses .init_array/.fini_array exclusively;
++   the _init/_fini frames are never emitted, so no startfile prologue is
++   needed.  Providing empty crti.o/crtn.o lets a no-libc bootstrap (where
++   glibc's crt files are not yet available) link libgcc's startfile set.  */
+diff --git a/libgcc/config/tilegx/crtn.S b/libgcc/config/tilegx/crtn.S
+new file mode 100644
+index 0000000000..61ce5165c5
+--- /dev/null
++++ b/libgcc/config/tilegx/crtn.S
+@@ -0,0 +1,3 @@
++/* crtn.S is empty because TILE-Gx uses .init_array/.fini_array exclusively;
++   the _init/_fini frames are never emitted, so no startfile epilogue is
++   needed.  See the note in crti.S.  */
 diff --git a/libgcc/config/tilegx/sfp-machine.h b/libgcc/config/tilegx/sfp-machine.h
 new file mode 100644
 index 0000000000..1ce84e1094
@@ -44023,7 +44042,7 @@ index 0000000000..fea45bd8e5
 +}
 +#endif
 diff --git a/libgcc/config.host b/libgcc/config.host
-index 6a88ee5a2d..35c84530ed 100644
+index 6a88ee5a2d..f30de0e776 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -218,6 +218,9 @@
@@ -44036,7 +44055,7 @@ index 6a88ee5a2d..35c84530ed 100644
  esac
  
  # Common parts for widely ported systems.
-@@ -1529,6 +1532,13 @@
+@@ -1529,6 +1532,14 @@
  	extra_parts="$extra_parts crtbeginS.o crtendS.o crti.o crtn.o"
  	unwind_header=config/c6x/unwind-c6x.h
  	;;
@@ -44045,6 +44064,7 @@ index 6a88ee5a2d..35c84530ed 100644
 +		tmake_file="${tmake_file} tilegx/t-softfp"
 +	fi
 +	tmake_file="${tmake_file} tilegx/t-crtstuff t-softfp-sfdf t-softfp tilegx/t-tilegx"
++	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
 +	md_unwind_header=tilepro/linux-unwind.h
 +	;;
  v850*-*-*)
