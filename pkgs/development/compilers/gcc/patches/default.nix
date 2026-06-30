@@ -114,6 +114,10 @@ optionals noSysDirs (
 # http://gcc.gnu.org/PR120718 backport (will be inclkuded in 15.3.0) to
 # fix `highway-1.3.0` ICE on aarch64-linux.
 ++ optional is15 ./15/aarch64-sve-rtx.patch
+# Re-add the Tilera TILE-Gx backend, forward-ported from gcc 12.4.0 (removed
+# upstream in gcc 13). Additive: only touches tilegx files plus config wiring,
+# so it is gated on a tilegx target and never perturbs other platforms.
+++ optional (is15 && targetPlatform.isTile) ./tilegx-backend.patch
 
 ## 2. Patches relevant on specific platforms ####################################
 

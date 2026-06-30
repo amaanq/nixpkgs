@@ -7,7 +7,10 @@ let
 in
 lib.concatLists [
   # --with-arch= is unknown flag on x86_64 and aarch64-darwin.
-  (lib.optional (!targetPlatform.isx86_64 && !isAarch64Darwin && p ? arch) "--with-arch=${p.arch}")
+  # tilegx's config.gcc lists no supported_defaults, so any --with-arch is rejected.
+  (lib.optional (
+    !targetPlatform.isx86_64 && !isAarch64Darwin && !targetPlatform.isTile && p ? arch
+  ) "--with-arch=${p.arch}")
   # See supported_defaults in gcc/config.gcc for architecture support.
   # --with-cpu on aarch64-darwin fails with "Unknown cpu used in --with-cpu=apple-a13".
   (lib.optional (
