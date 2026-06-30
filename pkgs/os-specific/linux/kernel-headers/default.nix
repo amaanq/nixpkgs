@@ -161,25 +161,43 @@ in
     let
       isTile = stdenvNoCC.hostPlatform.isTile;
       version = if isTile then "4.16" else "6.18.7";
-    in
-    makeLinuxHeaders {
-      inherit version;
-      src = fetchurl {
-        url = "mirror://kernel/linux/kernel/v${lib.versions.major version}.x/linux-${version}.tar.xz";
-        hash =
-          if isTile then
-            "sha256-Y/bcjjyfOgJz1db03KOKJBPKOl9okynQW3UOTIe7Ibk="
-          else
-            "sha256-tyak0Vz5rgYhm1bYeCB3bjTYn7wTflX7VKm5wwFbjx4=";
-      };
-      patches = lib.optionals (!isTile) [
-        ./no-relocs.patch # for building x86 kernel headers on non-ELF platforms
-      ];
-      passthru.updateScript = nix-update-script {
-        extraArgs = [
-          "--version"
-          "${linux_latest.meta.branch}"
+      base = makeLinuxHeaders {
+        inherit version;
+        src = fetchurl {
+          url = "mirror://kernel/linux/kernel/v${lib.versions.major version}.x/linux-${version}.tar.xz";
+          hash =
+            if isTile then
+              "sha256-Y/bcjjyfOgJz1db03KOKJBPKOl9okynQW3UOTIe7Ibk="
+            else
+              "sha256-tyak0Vz5rgYhm1bYeCB3bjTYn7wTflX7VKm5wwFbjx4=";
+        };
+        patches = lib.optionals (!isTile) [
+          ./no-relocs.patch # for building x86 kernel headers on non-ELF platforms
         ];
+        passthru.updateScript = nix-update-script {
+          extraArgs = [
+            "--version"
+            "${linux_latest.meta.branch}"
+          ];
+        };
       };
-    };
+    in
+    # Linux 4.16 predates the bare `make headers` target (added in 5.3); use the
+    # defconfig + headers_install flow like the Android branch. The kconfig step
+    # needs bison/flex, which makeLinuxHeaders only pulls for Android.
+    if isTile then
+      base.overrideAttrs (old: {
+        nativeBuildInputs = old.nativeBuildInputs ++ [
+          bison
+          flex
+          rsync
+        ];
+        buildPhase = ''
+          make mrproper $makeFlags
+          make defconfig $makeFlags
+          make headers_install $makeFlags
+        '';
+      })
+    else
+      base;
 }
