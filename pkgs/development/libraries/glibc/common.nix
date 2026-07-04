@@ -181,6 +181,10 @@ stdenv.mkDerivation (
       (lib.enableFeature profilingLibraries "profile")
       "--enable-fortify-source"
     ]
+    # tilegx has no syscall_cancel.S yet; the generic C fallback carries a
+    # deliberate #warning that is fatal under the default -Werror. Drop once
+    # the tile assembly implementation lands in tilegx-sysdeps.patch.
+    ++ lib.optional stdenv.hostPlatform.isTile "--disable-werror"
     ++ lib.optionals (stdenv.hostPlatform.isx86 || stdenv.hostPlatform.isAarch64) [
       # This feature is currently supported on
       # i386, x86_64 and x32 with binutils 2.29 or later,

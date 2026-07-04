@@ -4302,10 +4302,10 @@ index 0000000000..0147ffafb7
 +TLS_GENERATION_OFFSET		offsetof (struct rtld_global, _dl_tls_generation)
 diff --git a/sysdeps/tile/nptl/tls.h b/sysdeps/tile/nptl/tls.h
 new file mode 100644
-index 0000000000..c247edf05e
+index 0000000000..d84ab010a8
 --- /dev/null
 +++ b/sysdeps/tile/nptl/tls.h
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,178 @@
 +/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
 +   This file is part of the GNU C Library.
 +   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
@@ -4477,8 +4477,9 @@ index 0000000000..c247edf05e
 +      atomic_write_barrier ();						     \
 +    }									     \
 +  while (0)
-+#define THREAD_GSCOPE_WAIT() \
-+  GL(dl_wait_lookup_done) ()
++/* THREAD_GSCOPE_WAIT is provided generically by <ldsodefs.h> now
++   (__thread_gscope_wait), so tile no longer defines it here, matching
++   riscv/aarch64.  */
 +
 +#endif /* __ASSEMBLER__ */
 +
@@ -6614,112 +6615,6 @@ index 0000000000..b672f59ca1
 +#define __ILP32_OFFBIG_LDFLAGS	"-m32"
 +#define __LP64_OFF64_CFLAGS	"-m64"
 +#define __LP64_OFF64_LDFLAGS	"-m64"
-diff --git a/sysdeps/unix/sysv/linux/tile/bits/local_lim.h b/sysdeps/unix/sysv/linux/tile/bits/local_lim.h
-new file mode 100644
-index 0000000000..ba67237e5f
---- /dev/null
-+++ b/sysdeps/unix/sysv/linux/tile/bits/local_lim.h
-@@ -0,0 +1,100 @@
-+/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
-+   This file is part of the GNU C Library.
-+   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
-+
-+   The GNU C Library is free software; you can redistribute it and/or
-+   modify it under the terms of the GNU Lesser General Public
-+   License as published by the Free Software Foundation; either
-+   version 2.1 of the License, or (at your option) any later version.
-+
-+   The GNU C Library is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+   Lesser General Public License for more details.
-+
-+   You should have received a copy of the GNU Lesser General Public
-+   License along with the GNU C Library.  If not, see
-+   <http://www.gnu.org/licenses/>.  */
-+
-+/* The kernel header pollutes the namespace with the NR_OPEN symbol
-+   and defines LINK_MAX although filesystems have different maxima.  A
-+   similar thing is true for OPEN_MAX: the limit can be changed at
-+   runtime and therefore the macro must not be defined.  Remove this
-+   after including the header if necessary.  */
-+#ifndef NR_OPEN
-+# define __undef_NR_OPEN
-+#endif
-+#ifndef LINK_MAX
-+# define __undef_LINK_MAX
-+#endif
-+#ifndef OPEN_MAX
-+# define __undef_OPEN_MAX
-+#endif
-+#ifndef ARG_MAX
-+# define __undef_ARG_MAX
-+#endif
-+
-+/* The kernel sources contain a file with all the needed information.  */
-+#include <linux/limits.h>
-+
-+/* Have to remove NR_OPEN?  */
-+#ifdef __undef_NR_OPEN
-+# undef NR_OPEN
-+# undef __undef_NR_OPEN
-+#endif
-+/* Have to remove LINK_MAX?  */
-+#ifdef __undef_LINK_MAX
-+# undef LINK_MAX
-+# undef __undef_LINK_MAX
-+#endif
-+/* Have to remove OPEN_MAX?  */
-+#ifdef __undef_OPEN_MAX
-+# undef OPEN_MAX
-+# undef __undef_OPEN_MAX
-+#endif
-+/* Have to remove ARG_MAX?  */
-+#ifdef __undef_ARG_MAX
-+# undef ARG_MAX
-+# undef __undef_ARG_MAX
-+#endif
-+
-+/* The number of data keys per process.  */
-+#define _POSIX_THREAD_KEYS_MAX	128
-+/* This is the value this implementation supports.  */
-+#define PTHREAD_KEYS_MAX	1024
-+
-+/* Controlling the iterations of destructors for thread-specific data.  */
-+#define _POSIX_THREAD_DESTRUCTOR_ITERATIONS	4
-+/* Number of iterations this implementation does.  */
-+#define PTHREAD_DESTRUCTOR_ITERATIONS	_POSIX_THREAD_DESTRUCTOR_ITERATIONS
-+
-+/* The number of threads per process.  */
-+#define _POSIX_THREAD_THREADS_MAX	64
-+/* We have no predefined limit on the number of threads.  */
-+#undef PTHREAD_THREADS_MAX
-+
-+/* Maximum amount by which a process can descrease its asynchronous I/O
-+   priority level.  */
-+#define AIO_PRIO_DELTA_MAX	20
-+
-+/* Minimum size for a thread.  At least two pages for systems with 64k
-+   pages.  */
-+#define PTHREAD_STACK_MIN	131072
-+
-+/* Maximum number of timer expiration overruns.  */
-+#define DELAYTIMER_MAX	2147483647
-+
-+/* Maximum tty name length.  */
-+#define TTY_NAME_MAX		32
-+
-+/* Maximum login name length.  This is arbitrary.  */
-+#define LOGIN_NAME_MAX		256
-+
-+/* Maximum host name length.  */
-+#define HOST_NAME_MAX		64
-+
-+/* Maximum message queue priority level.  */
-+#define MQ_PRIO_MAX		32768
-+
-+/* Maximum value the semaphore can have.  */
-+#define SEM_VALUE_MAX   (2147483647)
 diff --git a/sysdeps/unix/sysv/linux/tile/bits/mman.h b/sysdeps/unix/sysv/linux/tile/bits/mman.h
 new file mode 100644
 index 0000000000..4b59ce2e98
@@ -6929,10 +6824,10 @@ index 0000000000..c236da1434
 +weak_alias (_flush_cache, cacheflush)
 diff --git a/sysdeps/unix/sysv/linux/tile/clone.S b/sysdeps/unix/sysv/linux/tile/clone.S
 new file mode 100644
-index 0000000000..a38f65ebb6
+index 0000000000..c0241c1eac
 --- /dev/null
 +++ b/sysdeps/unix/sysv/linux/tile/clone.S
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,175 @@
 +/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
 +   This file is part of the GNU C Library.
 +   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
@@ -6958,7 +6853,6 @@ index 0000000000..a38f65ebb6
 +#define _ERRNO_H 1
 +#include <bits/errno.h>
 +
-+#include <asm/unistd.h>
 +#include <arch/abi.h>
 +#include <tls.h>
 +#include <linux/sched.h>
@@ -8903,10 +8797,10 @@ index 0000000000..37c9d969af
 +hidden_def (__syscall_error)
 diff --git a/sysdeps/unix/sysv/linux/tile/sysdep.h b/sysdeps/unix/sysv/linux/tile/sysdep.h
 new file mode 100644
-index 0000000000..0a56158ae4
+index 0000000000..e2c5e9d8c2
 --- /dev/null
 +++ b/sysdeps/unix/sysv/linux/tile/sysdep.h
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,223 @@
 +/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
 +   This file is part of the GNU C Library.
 +   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
@@ -8925,7 +8819,13 @@ index 0000000000..0a56158ae4
 +   License along with the GNU C Library.  If not, see
 +   <http://www.gnu.org/licenses/>.  */
 +
-+#include <asm/unistd.h>
++/* Do not pull in the kernel <asm/unistd.h>.  Modern glibc treats
++   <arch-syscall.h> (reached through the internal <sys/syscall.h> wrapper
++   below) as the authoritative syscall-number list; the kernel header spells
++   the __NR3264_*-indirected numbers and __NR_cacheflush as expressions
++   rather than literals, so including it here would redefine them (identical
++   values, different token spelling) and trip -Werror.  riscv/loongarch omit
++   it for the same reason.  */
 +#include <sysdeps/tile/sysdep.h>
 +#include <sysdeps/unix/sysdep.h>
 +#include <sysdeps/unix/sysv/linux/sysdep.h>
