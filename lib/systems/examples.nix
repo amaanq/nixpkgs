@@ -201,9 +201,9 @@ rec {
 
   tilegx = {
     config = "tilegx-unknown-linux-gnu";
-    gcc = {
-      arch = "tilegx";
-    };
+    # No gcc.arch: TILE-Gx is a single-microarchitecture target that the
+    # compiler defaults to, and it spells the flag -mcpu, not -march, so a
+    # gcc.arch would make the cc-wrapper inject an unrecognized -march=tilegx.
   };
 
   mmix = {
