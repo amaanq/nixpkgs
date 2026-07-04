@@ -181,11 +181,6 @@ stdenv.mkDerivation (
       (lib.enableFeature profilingLibraries "profile")
       "--enable-fortify-source"
     ]
-    # The forward-ported tilegx sysdeps are 2018-era code that trips several
-    # warnings gcc-15 makes fatal under -Werror (e.g. ffsll's __builtin_ffsll
-    # self-recursion). The standalone tilegx glibc build disables werror for the
-    # same reason. Drop this once the tile sysdeps get a full warning-clean pass.
-    ++ lib.optional stdenv.hostPlatform.isTile "--disable-werror"
     ++ lib.optionals (stdenv.hostPlatform.isx86 || stdenv.hostPlatform.isAarch64) [
       # This feature is currently supported on
       # i386, x86_64 and x32 with binutils 2.29 or later,

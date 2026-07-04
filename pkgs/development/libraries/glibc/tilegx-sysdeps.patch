@@ -2339,86 +2339,6 @@ index 0000000000..05c57bff7e
 +#include_next <fenv_private.h>
 +
 +#endif
-diff --git a/sysdeps/tile/ffs.c b/sysdeps/tile/ffs.c
-new file mode 100644
-index 0000000000..6c34273453
---- /dev/null
-+++ b/sysdeps/tile/ffs.c
-@@ -0,0 +1,36 @@
-+/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
-+   This file is part of the GNU C Library.
-+   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
-+
-+   The GNU C Library is free software; you can redistribute it and/or
-+   modify it under the terms of the GNU Lesser General Public
-+   License as published by the Free Software Foundation; either
-+   version 2.1 of the License, or (at your option) any later version.
-+
-+   The GNU C Library is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+   Lesser General Public License for more details.
-+
-+   You should have received a copy of the GNU Lesser General Public
-+   License along with the GNU C Library.  If not, see
-+   <http://www.gnu.org/licenses/>.  */
-+
-+#include <limits.h>
-+#define ffsl __something_else
-+#include <string.h>
-+
-+#undef ffs
-+int
-+__ffs (int x)
-+{
-+  return __builtin_ffs (x);
-+}
-+weak_alias (__ffs, ffs)
-+libc_hidden_def (__ffs)
-+libc_hidden_builtin_def (ffs)
-+
-+#if ULONG_MAX == UINT_MAX
-+#undef ffsl
-+weak_alias (__ffs, ffsl)
-+#endif
-diff --git a/sysdeps/tile/ffsll.c b/sysdeps/tile/ffsll.c
-new file mode 100644
-index 0000000000..409ce703e5
---- /dev/null
-+++ b/sysdeps/tile/ffsll.c
-@@ -0,0 +1,32 @@
-+/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
-+   This file is part of the GNU C Library.
-+
-+   The GNU C Library is free software; you can redistribute it and/or
-+   modify it under the terms of the GNU Lesser General Public
-+   License as published by the Free Software Foundation; either
-+   version 2.1 of the License, or (at your option) any later version.
-+
-+   The GNU C Library is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+   Lesser General Public License for more details.
-+
-+   You should have received a copy of the GNU Lesser General Public
-+   License along with the GNU C Library.  If not, see
-+   <http://www.gnu.org/licenses/>.  */
-+
-+#include <limits.h>
-+#define ffsl __something_else
-+#include <string.h>
-+
-+#undef ffsll
-+int
-+ffsll (long long x)
-+{
-+  return __builtin_ffsll (x);
-+}
-+
-+#if ULONG_MAX > UINT_MAX
-+#undef ffsl
-+weak_alias (ffsll, ffsl)
-+#endif
 diff --git a/sysdeps/tile/gccframe.h b/sysdeps/tile/gccframe.h
 new file mode 100644
 index 0000000000..b3c351c068
@@ -3088,6 +3008,18 @@ index 0000000000..8eeafb8082
 +#define SNAN_TESTS_PRESERVE_PAYLOAD	0
 +
 +#include_next <math-tests.h>
+diff --git a/sysdeps/tile/math-use-builtins-ffs.h b/sysdeps/tile/math-use-builtins-ffs.h
+new file mode 100644
+index 0000000000..784b22a360
+--- /dev/null
++++ b/sysdeps/tile/math-use-builtins-ffs.h
+@@ -0,0 +1,6 @@
++/* TILE-Gx has a hardware count-trailing-zeros (ctz), so GCC lowers
++   __builtin_ffs/__builtin_ffsll inline with no libcall.  Route the generic
++   string/ffs.c and string/ffsll.c through the builtins instead of carrying an
++   arch override (the old sysdeps/tile/ffsll.c tripped -Winfinite-recursion).  */
++#define USE_FFS_BUILTIN   1
++#define USE_FFSLL_BUILTIN 1
 diff --git a/sysdeps/tile/memchr.c b/sysdeps/tile/memchr.c
 new file mode 100644
 index 0000000000..96a9f6e685
@@ -7285,33 +7217,6 @@ index 0000000000..461bd53c9b
 +PSEUDO_END (__ioctl)
 +libc_hidden_def (__ioctl)
 +weak_alias (__ioctl, ioctl)
-diff --git a/sysdeps/unix/sysv/linux/tile/ipc_priv.h b/sysdeps/unix/sysv/linux/tile/ipc_priv.h
-new file mode 100644
-index 0000000000..1292856d7c
---- /dev/null
-+++ b/sysdeps/unix/sysv/linux/tile/ipc_priv.h
-@@ -0,0 +1,21 @@
-+/* Old SysV permission definition for Linux.  Tile version.
-+   Copyright (C) 2017-2018 Free Software Foundation, Inc.
-+   This file is part of the GNU C Library.
-+
-+   The GNU C Library is free software; you can redistribute it and/or
-+   modify it under the terms of the GNU Lesser General Public
-+   License as published by the Free Software Foundation; either
-+   version 2.1 of the License, or (at your option) any later version.
-+
-+   The GNU C Library is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+   Lesser General Public License for more details.
-+
-+   You should have received a copy of the GNU Lesser General Public
-+   License along with the GNU C Library; if not, see
-+   <http://www.gnu.org/licenses/>.  */
-+
-+#include <sys/ipc.h>  /* For __key_t  */
-+
-+#define __IPC_64	0x0
 diff --git a/sysdeps/unix/sysv/linux/tile/kernel-features.h b/sysdeps/unix/sysv/linux/tile/kernel-features.h
 new file mode 100644
 index 0000000000..b47f1a0999
