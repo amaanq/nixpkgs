@@ -29,6 +29,11 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "libgcc";
   inherit (gcc.cc) src version;
 
+  # This derivation reuses the raw gcc tarball without gcc's patch list, so the
+  # tilegx backend re-add (which teaches config.gcc/config.host about tilegx) is
+  # absent and gcc's configure rejects the target. Apply it for tile only.
+  patches = lib.optional stdenv.hostPlatform.isTile ../../../compilers/gcc/patches/tilegx-backend.patch;
+
   outputs = [
     "out"
     "dev"
