@@ -181,9 +181,10 @@ stdenv.mkDerivation (
       (lib.enableFeature profilingLibraries "profile")
       "--enable-fortify-source"
     ]
-    # tilegx has no syscall_cancel.S yet; the generic C fallback carries a
-    # deliberate #warning that is fatal under the default -Werror. Drop once
-    # the tile assembly implementation lands in tilegx-sysdeps.patch.
+    # The forward-ported tilegx sysdeps are 2018-era code that trips several
+    # warnings gcc-15 makes fatal under -Werror (e.g. ffsll's __builtin_ffsll
+    # self-recursion). The standalone tilegx glibc build disables werror for the
+    # same reason. Drop this once the tile sysdeps get a full warning-clean pass.
     ++ lib.optional stdenv.hostPlatform.isTile "--disable-werror"
     ++ lib.optionals (stdenv.hostPlatform.isx86 || stdenv.hostPlatform.isAarch64) [
       # This feature is currently supported on
