@@ -4234,10 +4234,10 @@ index 0000000000..0147ffafb7
 +TLS_GENERATION_OFFSET		offsetof (struct rtld_global, _dl_tls_generation)
 diff --git a/sysdeps/tile/nptl/tls.h b/sysdeps/tile/nptl/tls.h
 new file mode 100644
-index 0000000000..d84ab010a8
+index 0000000000..8a6be5f359
 --- /dev/null
 +++ b/sysdeps/tile/nptl/tls.h
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,180 @@
 +/* Copyright (C) 2011-2018 Free Software Foundation, Inc.
 +   This file is part of the GNU C Library.
 +   Contributed by Chris Metcalf <cmetcalf@tilera.com>, 2011.
@@ -4335,9 +4335,11 @@ index 0000000000..d84ab010a8
 +/* Return dtv of given thread descriptor.  */
 +# define GET_DTV(tcbp)	(((tcbhead_t *) (tcbp))[-1].dtv)
 +
-+/* Code to initially initialize the thread pointer (tp).  */
++/* Code to initially initialize the thread pointer (tp).  Must yield true on
++   success: glibc >= 2.34 aborts startup when TLS_INIT_TP is falsy (the pre-2.34
++   port returned NULL here).  */
 +# define TLS_INIT_TP(tcbp) \
-+    (__tp_reg = (char *)(tcbp) + TLS_TCB_OFFSET, NULL)
++    (__tp_reg = (char *)(tcbp) + TLS_TCB_OFFSET, true)
 +
 +/* Value passed to 'clone' for initialization of the thread register.  */
 +# define TLS_DEFINE_INIT_TP(tp, pd) \
