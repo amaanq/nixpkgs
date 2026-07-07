@@ -33,19 +33,40 @@
   fetchpatch,
 }@args:
 let
+  # The forward-ported TILE-Gx backend is grafted onto LLVM only for the
+  # tilegx-targeting rustc. Stock x86 llvmPackages_21 stays byte-identical, so
+  # existing hosts never rebuild; the Tile-enabled libllvm is a distinct
+  # derivation built solely inside pkgsCross.tilegx.rustc.
+  addTileBackend =
+    drv:
+    if stdenv.targetPlatform.isTile then
+      drv.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          cp -r ${../llvm/21/tile/Tile} lib/Target/Tile
+          chmod -R u+w lib/Target/Tile
+          patch -p1 -i ${../llvm/21/tile/tile-integration.patch}
+        '';
+        cmakeFlags = (old.cmakeFlags or [ ]) ++ [
+          (lib.cmakeFeature "LLVM_EXPERIMENTAL_TARGETS_TO_BUILD" "Tile")
+        ];
+      })
+    else
+      drv;
   llvmSharedFor =
     pkgSet:
-    pkgSet.llvmPackages.libllvm.override (
-      {
-        enableSharedLibraries = true;
-      }
-      // lib.optionalAttrs (stdenv.targetPlatform.useLLVM or false) {
-        # Force LLVM to compile using clang + LLVM libs when targeting pkgsLLVM
-        stdenv = pkgSet.stdenv.override {
-          allowedRequisites = null;
-          cc = pkgSet.pkgsBuildHost.llvmPackages.clangUseLLVM;
-        };
-      }
+    addTileBackend (
+      pkgSet.llvmPackages.libllvm.override (
+        {
+          enableSharedLibraries = true;
+        }
+        // lib.optionalAttrs (stdenv.targetPlatform.useLLVM or false) {
+          # Force LLVM to compile using clang + LLVM libs when targeting pkgsLLVM
+          stdenv = pkgSet.stdenv.override {
+            allowedRequisites = null;
+            cc = pkgSet.pkgsBuildHost.llvmPackages.clangUseLLVM;
+          };
+        }
+      )
     );
 in
 import ./default.nix
