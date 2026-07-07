@@ -51,6 +51,15 @@ let
     concatStringsSep
     ;
   useLLVM = stdenv.targetPlatform.useLLVM or false;
+
+  # The forward-ported tilegx module lives in a libc fork newer than anything
+  # vendored in the rustc release tarball, so the tilegx std build swaps it in
+  # via `[patch.crates-io]`. Referenced only in the isTile branch below, so a
+  # non-tilegx rustc never coerces this out-of-tree path (needs --impure).
+  tilegxLibcSrc = builtins.path {
+    path = /home/amaanq/projects/forks/libc;
+    name = "tilegx-libc-src";
+  };
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "${targetPackages.stdenv.cc.targetPrefix}rustc";
@@ -94,7 +103,11 @@ stdenv.mkDerivation (finalAttrs: {
     );
 
     RUSTFLAGS = lib.concatStringsSep " " (
-      [
+      # tilegx: omit -Ccodegen-units=10 — it splits the cross-built std into 10
+      # CGUs, and the Tile backend emits a #[thread_local] static as TLS in one
+      # CGU but references it non-TLS in another, so ld rejects the std rlib. The
+      # standalone build linked because its std was 1 CGU (bootstrap default).
+      lib.optionals (!stdenv.targetPlatform.isTile) [
         # Increase codegen units to introduce parallelism within the compiler.
         "-Ccodegen-units=10"
       ]
@@ -105,6 +118,13 @@ stdenv.mkDerivation (finalAttrs: {
       ]
     );
     RUSTDOCFLAGS = "-A rustdoc::broken-intra-doc-links";
+  }
+  // lib.optionalAttrs stdenv.targetPlatform.isTile {
+    # tilegx is not an upstream target, so bootstrap's target sanity check would
+    # reject it; std also relies on unstable features while we build on the
+    # stable channel.
+    RUSTC_BOOTSTRAP = "1";
+    BOOTSTRAP_SKIP_TARGET_SANITY = "1";
   };
 
   # We need rust to build rust. If we don't provide it, configure will try to download it.
@@ -235,12 +255,18 @@ stdenv.mkDerivation (finalAttrs: {
       # doesn't work) to build a linker.
       "--disable-llvm-bitcode-linker"
     ]
+    ++ optionals stdenv.targetPlatform.isTile [
+      # cc-rs can't parse the tilegx triple, so building the C intrinsics
+      # fallback aborts with "unknown architecture"; use the pure-Rust
+      # compiler-builtins instead.
+      "--set=target.${stdenv.targetPlatform.rust.rustcTargetSpec}.optimized-compiler-builtins=false"
+    ]
     ++ optionals (!fastCross && stdenv.targetPlatform.config != "wasm32-unknown-none") [
       # See https://github.com/rust-lang/rust/issues/132802
       "--set=target.wasm32-unknown-unknown.optimized-compiler-builtins=false"
       "--set=target.wasm32v1-none.optimized-compiler-builtins=false"
     ]
-    ++ optionals (stdenv.targetPlatform.isLinux && !(stdenv.targetPlatform.useLLVM or false)) [
+    ++ optionals (stdenv.targetPlatform.isLinux && !(stdenv.targetPlatform.useLLVM or false) && !stdenv.targetPlatform.isTile) [
       "--enable-profiler" # build libprofiler_builtins
     ]
     ++ optionals stdenv.targetPlatform.isDarwin [
@@ -373,6 +399,21 @@ stdenv.mkDerivation (finalAttrs: {
     # on modern FreeBSD, use the system one instead
     substituteInPlace src/bootstrap/src/core/build_steps/tool.rs \
         --replace 'cargo.env("LZMA_API_STATIC", "1");' ' '
+  ''
+  + lib.optionalString stdenv.targetPlatform.isTile ''
+    patch -p1 < ${./tilegx-libc.patch}
+    substituteInPlace library/Cargo.toml \
+      --replace-fail '/home/amaanq/projects/forks/libc' '${tilegxLibcSrc}'
+
+    # compiler_builtins' build.rs probes cc-rs even with optimized-compiler-builtins
+    # off, and cc-rs 1.2.28 rejects the tilegx arch ("unknown architecture"). Teach
+    # its parser, then refresh the vendored checksum so cargo's offline verify passes.
+    substituteInPlace vendor/cc-1.2.28/src/target/parser.rs \
+      --replace-fail '        "xtensa" => "xtensa",' '        "xtensa" => "xtensa",
+        arch if arch.starts_with("tilegx") => "tilegx",'
+    newsum=$(sha256sum vendor/cc-1.2.28/src/target/parser.rs | cut -d' ' -f1)
+    sed -i "s#\"src/target/parser.rs\":\"[0-9a-f]*\"#\"src/target/parser.rs\":\"$newsum\"#" \
+      vendor/cc-1.2.28/.cargo-checksum.json
   '';
 
   # rustc unfortunately needs cmake to compile llvm-rt but doesn't

@@ -74,6 +74,12 @@ import ./default.nix
     rustcVersion = "1.95.0";
     rustcSha256 = "sha256-6puCqD5GlnU3w1ac6db6FoEcBDqW5lE3bDSecCQcpRU=";
 
+    # Experimental TILE-Gx target: new target spec, callconv, LLVM `tile`
+    # component init, and cfg-gated std/unwind arms. Gated on the tilegx target
+    # so the stock x86 rustc derivation stays byte-identical and Rust-using hosts
+    # never rebuild; only pkgsCross.tilegx's rustc carries the target spec.
+    rustcPatches = lib.optionals stdenv.targetPlatform.isTile [ ./tilegx.patch ];
+
     llvmSharedForBuild = llvmSharedFor pkgsBuildBuild;
     llvmSharedForHost = llvmSharedFor pkgsBuildHost;
     llvmSharedForTarget = llvmSharedFor pkgsBuildTarget;

@@ -13,27 +13,46 @@ let
 
   busybox = pkgs.busybox;
   hello = pkgs.hello;
+  btop = pkgs.btop;
+
+  # Populate /bin so an interactive shell has real command names on PATH
+  # (busybox applets + btop) instead of everyone typing store paths.
+  profile = build.writeText "profile" ''
+    export PATH=/bin HOME=/root TERM=xterm LANG=C.UTF-8
+    alias btop='btop --force-utf'
+    stty rows 50 cols 200 2>/dev/null
+    echo "tilegx nix rootfs — glibc 2.42, busybox ${busybox.version}, btop on PATH. Type: btop"
+  '';
 
   init = build.writeText "init" ''
     #!${busybox}/bin/sh
-    export PATH=${busybox}/bin
-    busybox mkdir -p /proc /sys /dev /tmp /root
-    busybox mount -t proc     proc /proc
-    busybox mount -t sysfs    sys  /sys
-    busybox mount -t devtmpfs dev  /dev 2>/dev/null || busybox mdev -s
+    export PATH=${busybox}/bin HOME=/root TERM=xterm LANG=C.UTF-8 ENV=/etc/profile
+    busybox mkdir -p /proc /sys /dev /dev/pts /tmp /root /bin /etc
+    busybox mount -t proc     proc   /proc
+    busybox mount -t sysfs    sys    /sys
+    busybox mount -t devtmpfs dev    /dev     2>/dev/null || busybox mdev -s
+    busybox mount -t devpts   devpts /dev/pts 2>/dev/null
+
+    busybox --install -s /bin
+    busybox ln -sf ${btop}/bin/btop /bin/btop
+    busybox cp ${profile} /etc/profile
 
     echo
     echo ">>>>>> NIX TILE-GX ROOTFS UP (glibc 2.42, busybox ${busybox.version}) <<<<<<"
     busybox uname -a
-    echo ">>> ld.so: ${busybox}/bin/busybox interp check"
-    busybox head -c0 /dev/null; echo "  (dynamic exec of busybox succeeded => glibc 2.42 loaded)"
-    echo ">>> hello:"
     ${hello}/bin/hello || echo "  hello FAILED rc=$?"
-    echo ">>>>>> handing off to a shell on /dev/console <<<<<<"
-    exec busybox setsid busybox sh -c 'exec busybox sh </dev/console >/dev/console 2>&1'
+    echo ">>>>>> interactive shell on hvc0 — type 'btop' <<<<<<"
+
+    # Shell on /dev/console (hvc0). With USE_TMF_CON OFF, hvc0 is the bidirectional
+    # rshim console (the one tile-monitor --console drives), so it can be typed at.
+    # setsid -c makes hvc0 the controlling tty (job control + full-screen btop).
+    while :; do
+      busybox setsid -c busybox sh -l </dev/console >/dev/console 2>&1
+      busybox sleep 1
+    done
   '';
 
-  closure = build.closureInfo { rootPaths = [ busybox hello init ]; };
+  closure = build.closureInfo { rootPaths = [ busybox hello btop init ]; };
 in
 build.runCommand "tile-initramfs.cpio.gz"
   {

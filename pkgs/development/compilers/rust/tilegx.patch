@@ -1,0 +1,425 @@
+diff --git a/compiler/rustc_codegen_llvm/src/va_arg.rs b/compiler/rustc_codegen_llvm/src/va_arg.rs
+index 460f4af..42158a5 100644
+--- a/compiler/rustc_codegen_llvm/src/va_arg.rs
++++ b/compiler/rustc_codegen_llvm/src/va_arg.rs
+@@ -1180,11 +1180,11 @@ pub(super) fn emit_va_arg<'ll, 'tcx>(
+ 
+         Arch::Mips | Arch::Mips32r6 | Arch::Mips64 | Arch::Mips64r6 => {
+             // FIXME: port MipsTargetLowering::lowerVAARG.
+             bx.va_arg(addr.immediate(), bx.cx.layout_of(target_ty).llvm_type(bx.cx))
+         }
+-        Arch::Sparc | Arch::Avr | Arch::M68k | Arch::Msp430 => {
++        Arch::Sparc | Arch::Avr | Arch::M68k | Arch::Msp430 | Arch::Tilegx => {
+             // Clang uses the LLVM implementation for these architectures.
+             bx.va_arg(addr.immediate(), bx.cx.layout_of(target_ty).llvm_type(bx.cx))
+         }
+         Arch::Other(_) => {
+             // For custom targets, use the LLVM va_arg instruction as a fallback.
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+index c58dd64..83f2109 100644
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -22,10 +22,11 @@ const OPTIONAL_COMPONENTS: &[&str] = &[
+     "nvptx",
+     "hexagon",
+     "riscv",
+     "xtensa",
+     "bpf",
++    "tile",
+ ];
+ 
+ const REQUIRED_COMPONENTS: &[&str] =
+     &["ipo", "bitreader", "bitwriter", "linker", "asmparser", "lto", "coverage", "instrumentation"];
+ 
+diff --git a/compiler/rustc_llvm/src/lib.rs b/compiler/rustc_llvm/src/lib.rs
+index a565e1f..8d1e3f8 100644
+--- a/compiler/rustc_llvm/src/lib.rs
++++ b/compiler/rustc_llvm/src/lib.rs
+@@ -236,6 +236,14 @@ pub fn initialize_available_targets() {
+         LLVMInitializeBPFTarget,
+         LLVMInitializeBPFTargetMC,
+         LLVMInitializeBPFAsmPrinter,
+         LLVMInitializeBPFAsmParser
+     );
++    init_target!(
++        llvm_component = "tile",
++        LLVMInitializeTileTargetInfo,
++        LLVMInitializeTileTarget,
++        LLVMInitializeTileTargetMC,
++        LLVMInitializeTileAsmPrinter,
++        LLVMInitializeTileAsmParser
++    );
+ }
+diff --git a/compiler/rustc_span/src/symbol.rs b/compiler/rustc_span/src/symbol.rs
+index 731a838..5374dc4 100644
+--- a/compiler/rustc_span/src/symbol.rs
++++ b/compiler/rustc_span/src/symbol.rs
+@@ -2019,10 +2019,11 @@ symbols! {
+         thread,
+         thread_local,
+         three_way_compare,
+         thumb2,
+         thumb_mode: "thumb-mode",
++        tilegx,
+         tmm_reg,
+         to_string,
+         to_vec,
+         tool_attributes,
+         tool_lints,
+diff --git a/compiler/rustc_target/src/asm/mod.rs b/compiler/rustc_target/src/asm/mod.rs
+index 0012e85..305e207 100644
+--- a/compiler/rustc_target/src/asm/mod.rs
++++ b/compiler/rustc_target/src/asm/mod.rs
+@@ -271,11 +271,11 @@ impl InlineAsmArch {
+             Arch::Bpf => Some(Self::Bpf),
+             Arch::Avr => Some(Self::Avr),
+             Arch::Msp430 => Some(Self::Msp430),
+             Arch::M68k => Some(Self::M68k),
+             Arch::CSky => Some(Self::CSKY),
+-            Arch::AmdGpu | Arch::Xtensa | Arch::Other(_) => None,
++            Arch::AmdGpu | Arch::Tilegx | Arch::Xtensa | Arch::Other(_) => None,
+         }
+     }
+ }
+ 
+ #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Hash)]
+diff --git a/compiler/rustc_target/src/callconv/mod.rs b/compiler/rustc_target/src/callconv/mod.rs
+index 6c8e0e1..b2d64fd 100644
+--- a/compiler/rustc_target/src/callconv/mod.rs
++++ b/compiler/rustc_target/src/callconv/mod.rs
+@@ -26,10 +26,11 @@ mod powerpc;
+ mod powerpc64;
+ mod riscv;
+ mod s390x;
+ mod sparc;
+ mod sparc64;
++mod tilegx;
+ mod wasm;
+ mod x86;
+ mod x86_64;
+ mod x86_win32;
+ mod x86_win64;
+@@ -688,10 +689,11 @@ impl<'a, Ty> FnAbi<'a, Ty> {
+             Arch::PowerPC64 => powerpc64::compute_abi_info(cx, self),
+             Arch::S390x => s390x::compute_abi_info(cx, self),
+             Arch::Msp430 => msp430::compute_abi_info(cx, self),
+             Arch::Sparc => sparc::compute_abi_info(cx, self),
+             Arch::Sparc64 => sparc64::compute_abi_info(cx, self),
++            Arch::Tilegx => tilegx::compute_abi_info(cx, self),
+             Arch::Nvptx64 => {
+                 if abi == ExternAbi::PtxKernel || abi == ExternAbi::GpuKernel {
+                     nvptx64::compute_ptx_kernel_abi_info(cx, self)
+                 } else {
+                     nvptx64::compute_abi_info(cx, self)
+diff --git a/compiler/rustc_target/src/callconv/tilegx.rs b/compiler/rustc_target/src/callconv/tilegx.rs
+new file mode 100644
+index 0000000..428e4c1
+--- /dev/null
++++ b/compiler/rustc_target/src/callconv/tilegx.rs
+@@ -0,0 +1,84 @@
++use rustc_abi::{BackendRepr, HasDataLayout, Primitive, Reg, Size, TyAbiInterface};
++
++use crate::callconv::{ArgAbi, ArgExtension, FnAbi, PassMode, Uniform};
++
++// The Tile-Gx C ABI passes the first arguments in the ten general registers
++// r0-r9 as 64-bit words, spilling the remainder to the stack. The core is
++// integer-only (no hardware FPU), so floats travel in the same general
++// registers and aggregates are decomposed into 64-bit integer chunks. This is
++// modelled on `mips64.rs` with the MIPS float-register special-casing removed.
++//
++// NOTE: this is a first-bring-up approximation. The exact aggregate-by-value
++// threshold, return-in-registers rules and varargs slot handling still need a
++// cross-check against the Tile-Gx psABI / the GCC tilegx backend so that
++// `extern "C"` matches gcc and glibc byte-for-byte.
++
++fn extend_integer_width<Ty>(arg: &mut ArgAbi<'_, Ty>, bits: u64) {
++    // 32-bit values are held sign-extended in a 64-bit register on Tile-Gx, so
++    // narrow scalars are promoted with sign extension regardless of signedness.
++    if let BackendRepr::Scalar(scalar) = arg.layout.backend_repr
++        && let Primitive::Int(i, signed) = scalar.primitive()
++        && !signed
++        && i.size().bits() == 32
++        && let PassMode::Direct(ref mut attrs) = arg.mode
++    {
++        attrs.ext(ArgExtension::Sext);
++        return;
++    }
++
++    arg.extend_integer_width_to(bits);
++}
++
++fn classify_ret<Ty>(ret: &mut ArgAbi<'_, Ty>, offset: &mut Size, dl_pointer_size: Size) {
++    if !ret.layout.is_aggregate() {
++        extend_integer_width(ret, 64);
++        return;
++    }
++
++    let size = ret.layout.size;
++    if size.bits() <= 128 {
++        ret.cast_to(Uniform::new(Reg::i64(), size));
++    } else {
++        ret.make_indirect();
++        *offset += dl_pointer_size;
++    }
++}
++
++fn classify_arg<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>, offset: &mut Size)
++where
++    Ty: TyAbiInterface<'a, C> + Copy,
++    C: HasDataLayout,
++{
++    let dl = cx.data_layout();
++    let size = arg.layout.size;
++    let align = Ord::clamp(arg.layout.align.abi, dl.i64_align, dl.i128_align);
++
++    if !arg.layout.is_aggregate() {
++        extend_integer_width(arg, 64);
++    } else if arg.layout.pass_indirectly_in_non_rustic_abis(cx) {
++        arg.make_indirect();
++    } else {
++        arg.cast_to(Uniform::new(Reg::i64(), size));
++    }
++
++    *offset = offset.align_to(align) + size.align_to(align);
++}
++
++pub(crate) fn compute_abi_info<'a, Ty, C>(cx: &C, fn_abi: &mut FnAbi<'a, Ty>)
++where
++    Ty: TyAbiInterface<'a, C> + Copy,
++    C: HasDataLayout,
++{
++    let mut offset = Size::ZERO;
++
++    if !fn_abi.ret.is_ignore() && fn_abi.ret.layout.is_sized() {
++        classify_ret(&mut fn_abi.ret, &mut offset, cx.data_layout().pointer_size());
++    }
++
++    for arg in fn_abi.args.iter_mut() {
++        if arg.is_ignore() || !arg.layout.is_sized() {
++            continue;
++        }
++        classify_arg(cx, arg, &mut offset);
++    }
++}
+diff --git a/compiler/rustc_target/src/spec/mod.rs b/compiler/rustc_target/src/spec/mod.rs
+index d9c872c..bd4c0ba 100644
+--- a/compiler/rustc_target/src/spec/mod.rs
++++ b/compiler/rustc_target/src/spec/mod.rs
+@@ -1695,10 +1695,11 @@ supported_targets! {
+     ("riscv64im-unknown-none-elf", riscv64im_unknown_none_elf),
+     ("riscv64imac-unknown-none-elf", riscv64imac_unknown_none_elf),
+     ("riscv64gc-unknown-none-elf", riscv64gc_unknown_none_elf),
+     ("riscv64gc-unknown-linux-gnu", riscv64gc_unknown_linux_gnu),
+     ("riscv64gc-unknown-linux-musl", riscv64gc_unknown_linux_musl),
++    ("tilegx-unknown-linux-gnu", tilegx_unknown_linux_gnu),
+     ("riscv64a23-unknown-linux-gnu", riscv64a23_unknown_linux_gnu),
+ 
+     ("sparc-unknown-none-elf", sparc_unknown_none_elf),
+ 
+     ("loongarch32-unknown-none", loongarch32_unknown_none),
+@@ -1891,10 +1892,11 @@ crate::target_spec_enum! {
+         RiscV64 = "riscv64",
+         S390x = "s390x",
+         Sparc = "sparc",
+         Sparc64 = "sparc64",
+         SpirV = "spirv",
++        Tilegx = "tilegx",
+         Wasm32 = "wasm32",
+         Wasm64 = "wasm64",
+         X86 = "x86",
+         X86_64 = "x86_64",
+         Xtensa = "xtensa",
+@@ -1928,10 +1930,11 @@ impl Arch {
+             Self::RiscV64 => sym::riscv64,
+             Self::S390x => sym::s390x,
+             Self::Sparc => sym::sparc,
+             Self::Sparc64 => sym::sparc64,
+             Self::SpirV => sym::spirv,
++            Self::Tilegx => sym::tilegx,
+             Self::Wasm32 => sym::wasm32,
+             Self::Wasm64 => sym::wasm64,
+             Self::X86 => sym::x86,
+             Self::X86_64 => sym::x86_64,
+             Self::Xtensa => sym::xtensa,
+@@ -1950,12 +1953,12 @@ impl Arch {
+             // to needlessly restrict custom target.json configurations.
+             Other(_) => true,
+ 
+             AArch64 | AmdGpu | Arm | Arm64EC | Avr | CSky | Hexagon | LoongArch32 | LoongArch64
+             | M68k | Mips | Mips32r6 | Mips64 | Mips64r6 | Msp430 | Nvptx64 | PowerPC
+-            | PowerPC64 | RiscV32 | RiscV64 | S390x | Sparc | Sparc64 | Wasm32 | Wasm64 | X86
+-            | X86_64 | Xtensa => true,
++            | PowerPC64 | RiscV32 | RiscV64 | S390x | Sparc | Sparc64 | Tilegx | Wasm32 | Wasm64
++            | X86 | X86_64 | Xtensa => true,
+         }
+     }
+ }
+ 
+ crate::target_spec_enum! {
+@@ -3480,10 +3483,11 @@ impl Target {
+             Arch::CSky => (Architecture::Csky, None),
+             Arch::Arm64EC => (Architecture::Aarch64, Some(object::SubArchitecture::Arm64EC)),
+             Arch::AmdGpu
+             | Arch::Nvptx64
+             | Arch::SpirV
++            | Arch::Tilegx
+             | Arch::Wasm32
+             | Arch::Wasm64
+             | Arch::Other(_) => return None,
+         })
+     }
+diff --git a/compiler/rustc_target/src/spec/targets/tilegx_unknown_linux_gnu.rs b/compiler/rustc_target/src/spec/targets/tilegx_unknown_linux_gnu.rs
+new file mode 100644
+index 0000000..c6dbf60
+--- /dev/null
++++ b/compiler/rustc_target/src/spec/targets/tilegx_unknown_linux_gnu.rs
+@@ -0,0 +1,48 @@
++use rustc_abi::Endian;
++
++use crate::spec::{Arch, Cc, LinkerFlavor, Lld, RelocModel, Target, TargetMetadata, TargetOptions, base};
++
++pub(crate) fn target() -> Target {
++    let mut opts = TargetOptions {
++        endian: Endian::Little,
++        // The Tile backend registers no named CPUs; rustc's default
++        // target-cpu "generic" is rejected and makes the VLIW packetizer
++        // index an empty schedule model (SIGABRT). Empty CPU is llc's default
++        // and the only value the backend accepts.
++        cpu: "".into(),
++        // First bring-up is static-friendly: the LLVM backend defaults to
++        // Reloc::Static and its PIC path (GOT/PLT lowering) is not yet trusted.
++        relocation_model: RelocModel::Static,
++        position_independent_executables: false,
++        static_position_independent_executables: false,
++        // Static-only bring-up: the PIC/GOT path is untrusted, so there is no
++        // working dynamic-library flavor yet. Turning dynamic linking off makes
++        // the library build emit an rlib-only std instead of also producing a
++        // dylib, whose embedded-metadata object rustc cannot yet write for this
++        // architecture (the `object` crate has no TILE-Gx e_machine mapping).
++        dynamic_linking: false,
++        max_atomic_width: Some(64),
++        ..base::linux_gnu::opts()
++    };
++    // tilegx ld (bfd) does not re-scan archives, and rustc lists panic_unwind
++    // ahead of std, so std's __rust_start_panic/__rust_panic_cleanup references
++    // go unresolved. Wrap the archive inputs in a linker group so ld re-scans.
++    opts.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-Wl,--start-group"]);
++    opts.post_link_args
++        .entry(LinkerFlavor::Gnu(Cc::Yes, Lld::No))
++        .or_default()
++        .push("-Wl,--end-group".into());
++    Target {
++        llvm_target: "tilegx-unknown-linux-gnu".into(),
++        metadata: TargetMetadata {
++            description: Some("TILE-Gx Linux (glibc)".into()),
++            tier: Some(3),
++            host_tools: Some(false),
++            std: Some(true),
++        },
++        pointer_width: 64,
++        data_layout: "e-m:e-p:64:64-i8:8:32-i16:16:32-i64:64-n32:64-S128".into(),
++        arch: Arch::Tilegx,
++        options: opts,
++    }
++}
+diff --git a/compiler/rustc_target/src/target_features.rs b/compiler/rustc_target/src/target_features.rs
+index c3de7e2..a8dc555 100644
+--- a/compiler/rustc_target/src/target_features.rs
++++ b/compiler/rustc_target/src/target_features.rs
+@@ -1005,11 +1005,12 @@ impl Target {
+             Arch::LoongArch32 | Arch::LoongArch64 => LOONGARCH_FEATURES,
+             Arch::S390x => IBMZ_FEATURES,
+             Arch::Sparc | Arch::Sparc64 => SPARC_FEATURES,
+             Arch::M68k => M68K_FEATURES,
+             Arch::Avr => AVR_FEATURES,
+-            Arch::AmdGpu | Arch::Msp430 | Arch::SpirV | Arch::Xtensa | Arch::Other(_) => &[],
++            Arch::AmdGpu | Arch::Msp430 | Arch::SpirV | Arch::Tilegx | Arch::Xtensa
++            | Arch::Other(_) => &[],
+         }
+     }
+ 
+     pub fn features_for_correct_fixed_length_vector_abi(&self) -> &'static [(u64, &'static str)] {
+         match &self.arch {
+@@ -1031,11 +1032,11 @@ impl Target {
+             Arch::AmdGpu => AMDGPU_FEATURES_FOR_CORRECT_FIXED_LENGTH_VECTOR_ABI,
+             Arch::Nvptx64 | Arch::Bpf | Arch::M68k | Arch::Avr => &[], // no vector ABI
+             Arch::CSky => CSKY_FEATURES_FOR_CORRECT_FIXED_LENGTH_VECTOR_ABI,
+             // FIXME: for some tier3 targets, we are overly cautious and always give warnings
+             // when passing args in vector registers.
+-            Arch::Msp430 | Arch::SpirV | Arch::Xtensa | Arch::Other(_) => &[],
++            Arch::Msp430 | Arch::SpirV | Arch::Tilegx | Arch::Xtensa | Arch::Other(_) => &[],
+         }
+     }
+ 
+     pub fn features_for_correct_scalable_vector_abi(&self) -> Option<&'static str> {
+         match &self.arch {
+diff --git a/library/std/src/os/linux/raw.rs b/library/std/src/os/linux/raw.rs
+index 6483f08..28fd580 100644
+--- a/library/std/src/os/linux/raw.rs
++++ b/library/std/src/os/linux/raw.rs
+@@ -236,11 +236,12 @@ mod arch {
+     target_arch = "mips64",
+     target_arch = "mips64r6",
+     target_arch = "s390x",
+     target_arch = "sparc64",
+     target_arch = "riscv64",
+-    target_arch = "riscv32"
++    target_arch = "riscv32",
++    target_arch = "tilegx"
+ ))]
+ mod arch {
+     #[stable(feature = "raw_ext", since = "1.1.0")]
+     pub use libc::{blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};
+ }
+diff --git a/library/std/src/sys/alloc/mod.rs b/library/std/src/sys/alloc/mod.rs
+index f2f1d1c..fae55f8 100644
+--- a/library/std/src/sys/alloc/mod.rs
++++ b/library/std/src/sys/alloc/mod.rs
+@@ -37,10 +37,11 @@ const MIN_ALIGN: usize = if cfg!(any(
+     target_arch = "mips64",
+     target_arch = "mips64r6",
+     target_arch = "s390x",
+     target_arch = "sparc64",
+     target_arch = "riscv64",
++    target_arch = "tilegx",
+     target_arch = "wasm64",
+ )) {
+     16
+ } else {
+     panic!("add a value for MIN_ALIGN")
+diff --git a/library/std/src/sys/personality/gcc.rs b/library/std/src/sys/personality/gcc.rs
+index 019d562..335d095 100644
+--- a/library/std/src/sys/personality/gcc.rs
++++ b/library/std/src/sys/personality/gcc.rs
+@@ -87,10 +87,13 @@ const UNWIND_DATA_REG: (i32, i32) = (0, 1); // R0, R1
+ const UNWIND_DATA_REG: (i32, i32) = (10, 11); // x10, x11
+ 
+ #[cfg(any(target_arch = "loongarch32", target_arch = "loongarch64"))]
+ const UNWIND_DATA_REG: (i32, i32) = (4, 5); // a0, a1
+ 
++#[cfg(target_arch = "tilegx")]
++const UNWIND_DATA_REG: (i32, i32) = (12, 13); // r12, r13
++
+ // The following code is based on GCC's C and C++ personality routines.  For reference, see:
+ // https://github.com/gcc-mirror/gcc/blob/master/libstdc++-v3/libsupc++/eh_personality.cc
+ // https://github.com/gcc-mirror/gcc/blob/trunk/libgcc/unwind-c.c
+ 
+ cfg_select! {
+diff --git a/library/unwind/src/libunwind.rs b/library/unwind/src/libunwind.rs
+index 091efa9..5b93e1f 100644
+--- a/library/unwind/src/libunwind.rs
++++ b/library/unwind/src/libunwind.rs
+@@ -70,10 +70,13 @@ pub const unwinder_private_data_size: usize = 2;
+ pub const unwinder_private_data_size: usize = 2;
+ 
+ #[cfg(any(target_arch = "riscv64", target_arch = "riscv32"))]
+ pub const unwinder_private_data_size: usize = 2;
+ 
++#[cfg(target_arch = "tilegx")]
++pub const unwinder_private_data_size: usize = 2;
++
+ #[cfg(all(target_arch = "wasm32", target_os = "emscripten"))]
+ pub const unwinder_private_data_size: usize = 20;
+ 
+ #[cfg(all(target_arch = "wasm32", target_os = "linux"))]
+ pub const unwinder_private_data_size: usize = 2;
