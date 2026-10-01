@@ -2,6 +2,7 @@
   lib,
   stdenv,
   fetchFromGitHub,
+  fetchpatch,
   enableStatic ? stdenv.hostPlatform.isStatic,
   enableShared ? !enableStatic,
   # Multi-threading with OpenMP is disabled by default
@@ -25,6 +26,24 @@ stdenv.mkDerivation rec {
   outputs = [
     "out"
     "dev"
+  ];
+
+  patches = [
+    (fetchpatch {
+      name = "CVE-2023-50980-prerequisite.patch";
+      url = "https://github.com/weidai11/cryptopp/commit/eb383b8e1622c07da2d5d6599a8b0e17a0deee0f.patch";
+      hash = "sha256-Su+W6mKIm94/Ov+l4apPOCG5+R8l5JTfoL/CnVsGykc=";
+    })
+    (fetchpatch {
+      name = "CVE-2023-50980.patch";
+      url = "https://github.com/weidai11/cryptopp/commit/641ae35258de397774744b8b17ef6632c3fa48b3.patch";
+      hash = "sha256-LloNJfhMBZtMg6WgFyE36ZmmU6cFSHj50FJvu1UIY8k=";
+    })
+    (fetchpatch {
+      name = "CVE-2023-50981.patch";
+      url = "https://github.com/weidai11/cryptopp/commit/9aa07aebbdc62461c3ac32f958d7c3ab89ff6f73.patch";
+      hash = "sha256-0Z8s+nDg+uy5+3cc1PraLKKPyOFMMe78ybvrf4YmQtU=";
+    })
   ];
 
   postPatch = ''
